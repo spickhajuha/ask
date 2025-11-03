@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FireVideo App</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body>
+  <!-- ================= HEADER ================= -->
+  <header class="app-header">
+    <div class="logo"><i class="ri-play-circle-fill"></i> FireVideo</div>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search videos...">
+      <button id="searchBtn"><i class="ri-search-line"></i></button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN ================= -->
+  <main>
+    <!-- HOME TAB -->
+    <section id="homeTab" class="tab-page active-page">
+      <div id="videoContainer" class="video-list"></div>
+    </section>
+
+    <!-- SUBSCRIPTIONS TAB -->
+    <section id="subscriptionsTab" class="tab-page">
+      <h3>Subscribed Channels</h3>
+      <div id="subscriptionsContainer" class="video-list"></div>
+    </section>
+
+    <!-- HISTORY TAB -->
+    <section id="historyTab" class="tab-page">
+      <h3>Watch History</h3>
+      <div id="historyContainer" class="video-list"></div>
+    </section>
+
+    <!-- UPLOAD TAB -->
+    <section id="uploadTab" class="tab-page">
+      <div class="upload-container">
+        <h2>Upload Video</h2>
+        <input type="text" id="videoTitle" placeholder="Video title">
+        <input type="text" id="videoUrl" placeholder="Video URL">
+        <label>Thumbnail (Image or URL)</label>
+        <input type="file" id="thumbnailFile" accept="image/*">
+        <input type="text" id="thumbnailUrl" placeholder="or Thumbnail URL">
+        <button id="uploadBtn">Upload</button>
+        <div id="uploadMsg"></div>
+      </div>
+    </section>
+
+    <!-- PROFILE TAB -->
+    <section id="profileTab" class="tab-page">
+      <div class="profile-header">
+        <div class="profile-pic-container">
+          <img id="profilePic" src="https://i.ibb.co/7N0V4fJ/user.png" alt="Profile">
+        </div>
+        <div>
+          <h3 id="profileName">User</h3>
+          <button id="editProfileBtn"><i class="ri-edit-2-line"></i></button>
+        </div>
+      </div>
+
+      <div id="editProfileSection" class="hidden">
+        <input type="text" id="editName" placeholder="Enter new name">
+        <input type="file" id="editProfilePic" accept="image/*">
+        <button id="saveProfileBtn">Save</button>
+      </div>
+
+      <h3>Your Videos</h3>
+      <div id="yourVideos" class="video-list"></div>
+    </section>
+
+    <!-- CHANNEL PAGE -->
+    <section id="channelPage" class="tab-page">
+      <div class="channel-header">
+        <img id="channelPic" src="" alt="Channel">
+        <h2 id="channelName"></h2>
+        <button id="subscribeBtn">Subscribe</button>
+      </div>
+      <div id="channelVideos" class="video-list"></div>
+    </section>
+  </main>
+
+  <!-- ================= VIDEO PLAYER POPUP ================= -->
+  <div id="videoPopup" class="popup hidden">
+    <div class="popup-content">
+      <div class="video-frame">
+        <video id="videoPlayer" controls></video>
+      </div>
+      <div class="video-info-area">
+        <h3 id="playerTitle"></h3>
+        <div class="video-meta">
+          <img id="playerChannelPic" class="channel-logo" src="">
+          <span id="playerChannelName"></span>
+          <button id="playerSubscribeBtn">Subscribe</button>
+        </div>
+        <div class="video-actions">
+          <button id="likeBtn"><i class="ri-heart-line"></i> <span id="likeCount">0</span></button>
+          <button id="downloadBtn"><i class="ri-download-2-line"></i></button>
+          <button id="closeBtn"><i class="ri-close-line"></i></button>
+        </div>
+        <p id="uploadTime"></p>
+      </div>
+
+      <div id="commentsSection">
+        <h4>Comments</h4>
+        <div id="commentList"></div>
+        <form id="commentForm">
+          <input type="text" id="commentInput" placeholder="Add a comment...">
+          <button type="submit"><i class="ri-send-plane-fill"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BOTTOM NAV ================= -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="homeTab"><i class="ri-home-5-line"></i></button>
+    <button class="nav-btn" data-tab="subscriptionsTab"><i class="ri-youtube-line"></i></button>
+    <button class="nav-btn" data-tab="historyTab"><i class="ri-time-line"></i></button>
+    <button class="nav-btn" data-tab="uploadTab"><i class="ri-upload-cloud-2-line"></i></button>
+    <button class="nav-btn" data-tab="profileTab"><i class="ri-user-3-line"></i></button>
+  </nav>
+
+  <!-- ================= FIREBASE + APP SCRIPT ================= -->
+  <script type="module" src="app.js"></script>
+
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+</body>
+</html>

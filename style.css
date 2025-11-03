@@ -1,0 +1,421 @@
+/* =================== GLOBAL =================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+}
+
+body {
+  background-color: #0f0f0f;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* =================== HEADER =================== */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #202020;
+  padding: 10px 15px;
+  border-bottom: 1px solid #333;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: #ff0000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #121212;
+  border-radius: 25px;
+  padding: 5px 10px;
+}
+
+.search-bar input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  width: 180px;
+  padding: 5px;
+  font-size: 0.9rem;
+}
+
+.search-bar button {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.search-bar button:hover {
+  color: #fff;
+}
+
+/* =================== MAIN =================== */
+main {
+  flex: 1;
+  padding-bottom: 70px;
+}
+
+.tab-page {
+  display: none;
+  padding: 10px 15px;
+}
+
+.tab-page.active-page {
+  display: block;
+}
+
+/* =================== VIDEO GRID =================== */
+.video-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+.video-card {
+  background: #181818;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.video-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+}
+
+.video-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.video-info {
+  padding: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.channel-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+.video-text {
+  flex: 1;
+}
+
+.video-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.video-author {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+/* =================== UPLOAD =================== */
+.upload-container {
+  background: #181818;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.upload-container h2 {
+  margin-bottom: 15px;
+  color: #ff4444;
+}
+
+.upload-container input {
+  width: 100%;
+  padding: 8px;
+  margin: 6px 0;
+  border-radius: 8px;
+  border: none;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.upload-container button {
+  margin-top: 10px;
+  background: #ff0000;
+  border: none;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.upload-container button:hover {
+  background: #e60000;
+}
+
+/* =================== PROFILE =================== */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #181818;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.profile-pic-container {
+  position: relative;
+}
+
+.profile-pic-container img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-pic-container:hover {
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+#editProfileBtn {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+#editProfileBtn:hover {
+  color: #fff;
+}
+
+#editProfileSection {
+  margin-top: 10px;
+  background: #181818;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+#editProfileSection input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: none;
+  background: #2a2a2a;
+  color: #fff;
+}
+
+#editProfileSection button {
+  margin-top: 8px;
+  background: #ff0000;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 20px;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* =================== CHANNEL PAGE =================== */
+.channel-header {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.channel-header img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin-bottom: 8px;
+}
+
+.channel-header h2 {
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+}
+
+#subscribeBtn {
+  background: #ff0000;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* =================== VIDEO PLAYER POPUP =================== */
+.popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 15, 15, 0.97);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.popup.hidden {
+  display: none;
+}
+
+.popup-content {
+  background: #121212;
+  border-radius: 15px;
+  width: 95%;
+  max-width: 640px;
+  padding: 15px;
+  position: relative;
+  overflow-y: auto;
+  max-height: 95vh;
+}
+
+.popup-content::-webkit-scrollbar {
+  display: none;
+}
+
+.video-frame video {
+  width: 100%;
+  border-radius: 12px;
+  background: #000;
+  max-height: 320px;
+}
+
+.video-info-area {
+  margin-top: 10px;
+}
+
+.video-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.video-actions {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+}
+
+.video-actions button {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: color 0.2s ease;
+}
+
+.video-actions button:hover {
+  color: #fff;
+}
+
+#commentsSection {
+  margin-top: 15px;
+  background: #181818;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+#commentForm {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+#commentForm input {
+  flex: 1;
+  background: #2a2a2a;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 12px;
+  color: #fff;
+}
+
+#commentForm button {
+  background: #ff0000;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* =================== BOTTOM NAV =================== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #202020;
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0;
+  border-top: 1px solid #333;
+  z-index: 200;
+}
+
+.bottom-nav button {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.bottom-nav button.active,
+.bottom-nav button:hover {
+  color: #ff0000;
+}
+
+/* =================== UTILITIES =================== */
+.hidden {
+  display: none;
+}
+
+h3, h4 {
+  margin: 10px 0;
+}
+
+#uploadMsg {
+  margin-top: 10px;
+  color: #0f0;
+  font-size: 0.85rem;
+  text-align: center;
+}
