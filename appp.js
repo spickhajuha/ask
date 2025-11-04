@@ -42,6 +42,7 @@ onAuthStateChanged(auth, (user) => {
     hideLoginPopup();
     loadUserData();
     loadAllVideos();
+    loadSearchHistory();
   } else {
     currentUserId = null;
   }
@@ -178,37 +179,53 @@ function openAtTop(pageEl) {
 }
 
 // ===============================
-// Tabs Events
 // ===============================
+// Tabs Events (clear search input only)
+// ===============================
+// ===============================
+// Tabs Events (Clear search + Show all videos)
+// ===============================
+function resetSearchAndShowAll() {
+  if (searchInput) searchInput.value = "";
+  loadAllVideos(); // reload full list of videos
+}
+
 tabs.home.onclick = () => {
+  resetSearchAndShowAll();
   showPage(pages.home);
   setActiveTab(tabs.home);
-  loadAllVideos();
 };
+
 tabs.history.onclick = () => {
   if (!currentUserId) return showLoginPopup();
+  resetSearchAndShowAll();
   showPage(pages.history);
   setActiveTab(tabs.history);
   loadHistory();
 };
+
 tabs.subs.onclick = () => {
   if (!currentUserId) return showLoginPopup();
+  resetSearchAndShowAll();
   showPage(pages.subs);
   setActiveTab(tabs.subs);
   loadSubscriptions();
 };
+
 tabs.upload.onclick = () => {
   if (!currentUserId) return showLoginPopup();
+  resetSearchAndShowAll();
   showPage(pages.upload);
   setActiveTab(tabs.upload);
 };
+
 tabs.profile.onclick = () => {
   if (!currentUserId) return showLoginPopup();
+  resetSearchAndShowAll();
   showPage(pages.profile);
   setActiveTab(tabs.profile);
   loadUserVideos();
 };
-
 // ===============================
 // Logout
 // ===============================
@@ -233,15 +250,10 @@ function fileToBase64(file) {
 function hideUIForLoader(show) {
   const header = document.querySelector("header");
   const nav = document.querySelector("nav.bottom-nav");
-  if (show) {
-    header.style.display = "none";
-    nav.style.display = "none";
-  } else {
-    header.style.display = "flex";
-    nav.style.display = "flex";
-  }
+  if (!header || !nav) return;
+  header.style.display = show ? "none" : "flex";
+  nav.style.display = show ? "none" : "flex";
 }
-
 // ===============================
 // Upload
 // ===============================
@@ -355,25 +367,73 @@ function createVideoCard(v, isUserVideo = false) {
 
   // Optional: user video edit/delete handlers (if you had them earlier)
   if (isUserVideo) {
-    const editBtn = div.querySelector(".edit-mini");
-    const delBtn = div.querySelector(".delete-mini");
-    if (editBtn) {
-      editBtn.onclick = (e) => {
-        e.stopPropagation();
-        const newTitle = prompt("New title", v.title);
-        if (newTitle) update(ref(db, "videos/" + v.id), { title: newTitle });
-      };
-    }
-    if (delBtn) {
-      delBtn.onclick = async (e) => {
-        e.stopPropagation();
-        if (confirm("Delete this video?")) {
-          await remove(ref(db, "videos/" + v.id));
-        }
-      };
-    }
-  }
+  const editBtn = div.querySelector(".edit-mini");
+  const delBtn = div.querySelector(".delete-mini");
 
+  if (editBtn) {
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      showEditPopup(v);
+    };
+  }
+  if (delBtn) {
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      showDeletePopup(v);
+    };
+  }
+}
+
+// 🔥 Advanced Edit Popup
+function showEditPopup(v) {
+  const overlay = document.createElement("div");
+  overlay.className = "popup-overlay";
+  overlay.innerHTML = `
+    <div class="popup-box neon-border">
+      <h3>Edit Video Title</h3>
+      <input type="text" id="editTitleInput" value="${v.title}" />
+      <div class="popup-actions">
+        <button id="saveEditBtn" class="neon-button small-btn">Save</button>
+        <button id="cancelEditBtn" class="neon-button small-btn cancel-btn">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById("saveEditBtn").onclick = async () => {
+    const newTitle = document.getElementById("editTitleInput").value.trim();
+    if (newTitle) {
+      await update(ref(db, "videos/" + v.id), { title: newTitle });
+      document.body.removeChild(overlay);
+    }
+  };
+  document.getElementById("cancelEditBtn").onclick = () =>
+    document.body.removeChild(overlay);
+}
+
+// 🔥 Advanced Delete Popup
+function showDeletePopup(v) {
+  const overlay = document.createElement("div");
+  overlay.className = "popup-overlay";
+  overlay.innerHTML = `
+    <div class="popup-box neon-border">
+      <h3>Delete This Video?</h3>
+      <p>Are you sure you want to delete <b>${v.title}</b>?</p>
+      <div class="popup-actions">
+        <button id="confirmDeleteBtn" class="neon-button small-btn">Yes, Delete</button>
+        <button id="cancelDeleteBtn" class="neon-button small-btn cancel-btn">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById("confirmDeleteBtn").onclick = async () => {
+    await remove(ref(db, "videos/" + v.id));
+    document.body.removeChild(overlay);
+  };
+  document.getElementById("cancelDeleteBtn").onclick = () =>
+    document.body.removeChild(overlay);
+}
   return div;
 }
 
@@ -624,14 +684,20 @@ function loadUserData() {
 // ===============================
 // Search
 // ===============================
+// ===============================
+// SEARCH BUTTON + HISTORY
+// ===============================
 searchBtn.onclick = async () => {
   const q = searchInput.value.trim().toLowerCase();
   if (!q) return;
 
-  if (currentUserId)
-    await set(ref(db, `searchHistory/${currentUserId}/${Date.now()}`), {
-      query: q,
-    });
+  // ✅ Save search to Firebase history
+  if (currentUserId) {
+    const sRef = ref(db, `searchHistory/${currentUserId}/${Date.now()}`);
+    await set(sRef, { query: q, time: Date.now() });
+  }
+
+  loadSearchHistory(); // Refresh search history list
 
   const loader = document.getElementById("homeLoader");
   loader.style.display = "flex";
@@ -642,16 +708,55 @@ searchBtn.onclick = async () => {
     homeVideos.innerHTML = "";
     loader.style.display = "none";
     hideUIForLoader(false);
+
     if (d) {
-      const results = Object.values(d).filter((v) =>
-        v.title.toLowerCase().includes(q)
-      );
+      const results = Object.values(d).filter((v) => {
+        const titleMatch = v.title?.toLowerCase().includes(q);
+        const channelMatch = v.uploaderName?.toLowerCase().includes(q);
+        return titleMatch || channelMatch;
+      });
+
       if (results.length)
         results.forEach((v) => homeVideos.appendChild(createVideoCard(v)));
       else homeVideos.innerHTML = `No videos found.`;
     }
   });
 };
+
+// ===============================
+// SEARCH HISTORY DISPLAY
+// ===============================
+function loadSearchHistory() {
+  const container = document.getElementById("searchHistoryContainer");
+  const list = document.getElementById("searchHistoryList");
+  if (!currentUserId) {
+    container.classList.add("hidden");
+    return;
+  }
+
+  onValue(ref(db, `searchHistory/${currentUserId}`), (snap) => {
+    const d = snap.val();
+    list.innerHTML = "";
+    if (d) {
+      container.classList.remove("hidden");
+      const entries = Object.values(d)
+        .slice(-10) // last 10 searches
+        .reverse();
+      entries.forEach((s) => {
+        const item = document.createElement("button");
+        item.className = "search-history-item";
+        item.textContent = s.query;
+        item.onclick = () => {
+          searchInput.value = s.query;
+          searchBtn.click();
+        };
+        list.appendChild(item);
+      });
+    } else {
+      container.classList.add("hidden");
+    }
+  });
+}
 
 // ===============================
 // Comments + Likes (optional basic)
@@ -684,8 +789,14 @@ if (likeBtn && likeCount) {
     if (liked) delete updates.likedBy[currentUserId];
     else updates.likedBy[currentUserId] = true;
     await update(vRef, updates);
-    likeCount.innerText = updates.likes;
-    updateLikeUI();
+likeCount.innerText = updates.likes;
+
+// Turant glow/unglow show
+if (liked) {
+  likeBtn.classList.remove("liked");
+} else {
+  likeBtn.classList.add("liked");
+}
   };
 
   // Auto update when video opens
@@ -732,13 +843,12 @@ if (commentForm && commentInput && commentList) {
         const el = document.createElement("div");
         el.className = "comment-item";
         el.innerHTML = `
-          <div class="c-head">
-            <img class="c-dp" src="${c.userLogo || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}" />
-            <span class="c-name">${c.userName || "User"}</span>
-            <span class="c-time">${timeAgo(c.createdAt)}</span>
-          </div>
-          <div class="c-text">${c.text}</div>
-        `;
+  <div class="c-head">
+    <span class="c-name">${c.userName || "User"}</span>
+    <span class="c-time">${timeAgo(c.createdAt)}</span>
+  </div>
+  <div class="c-text">${c.text}</div>
+`;
         commentList.appendChild(el);
       }
     });
