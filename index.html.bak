@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebEx Neon</title>
+
+  <!-- ICONS & FONTS -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <!-- HEADER -->
+  <header class="app-header solid-header">
+    <div class="logo neon-glow">
+      <i class="fa-solid fa-play"></i> WebEx
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search videos..." />
+      <button id="searchBtn">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main>
+    <!-- HOME PAGE -->
+    <section id="homePage" class="tab-page active-page">
+      <div id="homeLoader">
+        <div class="loader-wave">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <div class="video-list" id="homeVideos"></div>
+    </section>
+
+    <!-- HISTORY PAGE -->
+    <section id="historyPage" class="tab-page">
+      <h3><i class="fa-solid fa-clock-rotate-left"></i> Watch History</h3>
+      <div class="video-list" id="historyVideos"></div>
+    </section>
+
+    <!-- SUBSCRIPTIONS PAGE -->
+    <section id="subsPage" class="tab-page">
+      <h3><i class="fa-solid fa-heart"></i> Subscriptions</h3>
+      <div class="video-list" id="subsVideos"></div>
+    </section>
+
+    <!-- CHANNEL PAGE -->
+    <section id="channelPage" class="tab-page channel-slide">
+      <div class="channel-banner">
+        <div class="channel-header">
+          <img
+            id="channelLogo"
+            class="channel-banner-logo"
+            alt="Channel Logo"
+          />
+          <div class="channel-info">
+            <h2 id="channelName" class="neon-glow"></h2>
+            <button id="subscribeBtn" class="neon-button">
+              <i class="fa-solid fa-bell"></i> Subscribe
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="video-list" id="channelVideos"></div>
+    </section>
+
+    <!-- UPLOAD PAGE -->
+    <section id="uploadPage" class="tab-page">
+      <div class="upload-container neon-border">
+        <h2><i class="fa-solid fa-upload"></i> Upload Video</h2>
+        <form id="uploadForm">
+          <input
+            type="text"
+            id="videoTitle"
+            placeholder="Enter video title"
+            required
+          />
+
+          <label>Thumbnail (File or URL)</label>
+          <input type="file" id="thumbFile" accept="image/*" />
+          <input type="url" id="thumbUrl" placeholder="Or enter thumbnail URL" />
+
+          <label>Video (File or URL)</label>
+          <input type="file" id="videoFile" accept="video/*" />
+          <input type="url" id="videoUrl" placeholder="Or enter video URL" />
+
+          <button type="submit" id="uploadBtn">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+          </button>
+        </form>
+        <p id="uploadMsg"></p>
+      </div>
+    </section>
+
+    <!-- PROFILE PAGE -->
+    <section id="profilePage" class="tab-page">
+      <div class="profile-header">
+        <div class="profile-pic-container">
+          <img
+            id="profileImg"
+            src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
+            alt="Profile"
+          />
+          <input type="file" id="profileUpload" accept="image/*" hidden />
+        </div>
+        <h2 id="profileName">User</h2>
+        <button id="editProfileBtn"><i class="fa-solid fa-pen"></i></button>
+        <button id="logoutBtn" class="neon-button small-btn">
+          <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+      </div>
+
+      <div id="editProfileSection" class="hidden">
+        <input type="text" id="newProfileName" placeholder="Enter new name" />
+        <button id="saveProfileBtn">
+          <i class="fa-solid fa-check"></i> Save
+        </button>
+      </div>
+
+      <h3><i class="fa-solid fa-video"></i> Your Videos</h3>
+      <div class="video-list" id="userVideos"></div>
+    </section>
+
+    <!-- VIDEO PAGE -->
+    <section id="videoPage" class="tab-page">
+      <div class="video-container neon-border" id="fixedVideoContainer">
+        <div id="videoLoader">
+          <div class="loader-wave">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <!-- MAIN VIDEO PLAYER -->
+        <video id="player" controls playsinline preload="auto"></video>
+
+        <!-- META INFO + ACTIONS -->
+        <div class="video-meta">
+          <h3 id="playerTitle"></h3>
+          <div class="channel-under" id="playerChannel">
+            <img id="playerChannelLogo" class="channel-logo-small" />
+            <div class="channel-under-info">
+              <h4 id="playerChannelName"></h4>
+              <p id="playerUploadTime"></p>
+            </div>
+            <button id="subscribeUnderBtn" class="neon-button small-btn">
+              <i class="fa-solid fa-bell"></i> Subscribe
+            </button>
+          </div>
+
+          <div class="video-actions">
+            <button id="likeBtn">
+              <i class="fa-solid fa-thumbs-up"></i>
+              <span id="likeCount">0</span>
+            </button>
+            <button id="commentBtn">
+              <i class="fa-solid fa-comment"></i>
+            </button>
+            <button id="downloadBtn">
+              <i class="fa-solid fa-download"></i>
+            </button>
+            <button id="closePlayer">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- COMMENTS -->
+        <div id="commentsSection" class="hidden">
+          <div id="commentList"></div>
+          <form id="commentForm">
+            <input
+              type="text"
+              id="commentInput"
+              placeholder="Add a comment..."
+              required
+            />
+            <button type="submit">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </form>
+        </div>
+
+        <!-- RECOMMENDED -->
+        <div class="recommended-section">
+          <h3>Recommended</h3>
+          <div class="video-list" id="recommendedVideos"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav class="bottom-nav">
+    <button id="homeTab" class="active">
+      <i class="fa-solid fa-house"></i>
+    </button>
+    <button id="historyTab">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+    </button>
+    <button id="subsTab"><i class="fa-solid fa-heart"></i></button>
+    <button id="uploadTab"><i class="fa-solid fa-square-plus"></i></button>
+    <button id="profileTab"><i class="fa-solid fa-user"></i></button>
+  </nav>
+
+  <!-- GOOGLE SIGN-IN POPUP -->
+  <div id="loginPopup" class="login-popup hidden">
+    <div class="popup-box neon-border">
+      <h2><i class="fa-brands fa-google"></i> Sign in to WebEx</h2>
+      <p>
+        Sign in with your Google account to like, comment, subscribe, and upload
+        videos.
+      </p>
+      <button id="googleLoginBtn" class="neon-button">
+        <i class="fa-brands fa-google"></i> Sign in with Google
+      </button>
+      <button id="closeLoginPopup" class="neon-button small-btn">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- FIREBASE INIT -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDwnnT438MxZS_MZgYCkexqO2Xl79lr_ww",
+      authDomain: "webex-aa9bc.firebaseapp.com",
+      databaseURL: "https://webex-aa9bc-default-rtdb.firebaseio.com",
+      projectId: "webex-aa9bc",
+      storageBucket: "webex-aa9bc.appspot.com",
+      messagingSenderId: "414824337045",
+      appId: "1:414824337045:web:8dc5a4c788c6958e0b159c",
+      measurementId: "G-JKQS0RCSNH",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    getAnalytics(app);
+  </script>
+
+  <!-- JS -->
+  <script type="module" src="appp.js"></script>
+</body>
+</html>

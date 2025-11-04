@@ -29,6 +29,396 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 let currentUserId = null;
+let currentVideoId = null;
+let currentChannelId = null;
+
+// ===============================
+// Auth Handling
+// ===============================
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUserId = user.uid;
+    hideLoginPopup();
+    loadUserData();
+    loadAllVideos();
+  } else {
+    currentUserId = null;
+  }
+});
+
+// ===============================
+// Login Popup
+// ===============================
+const loginPopup = document.getElementById("loginPopup");
+const googleLoginBtn = document.getElementById("googleLoginBtn");
+const closeLoginPopup = document.getElementById("closeLoginPopup");
+
+function showLoginPopup() {
+  loginPopup.classList.remove("hidden");
+}
+function hideLoginPopup() {
+  loginPopup.classList.add("hidden");
+}
+googleLoginBtn.onclick = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    await set(ref(db, "users/" + user.uid), {
+      name: user.displayName,
+      logo: user.photoURL,
+    });
+    currentUserId = user.uid;
+    hideLoginPopup();
+    loadUserData();
+    loadAllVideos();
+  } catch (err) {
+    alert("Sign-in failed: " + err.message);
+  }
+};
+closeLoginPopup.onclick = hideLoginPopup;
+
+// ===============================
+// DOM Elements
+// ===============================
+const pages = {
+  home: document.getElementById("homePage"),
+  history: document.getElementById("historyPage"),
+  subs: document.getElementById("subsPage"),
+  upload: document.getElementById("uploadPage"),
+  profile: document.getElementById("profilePage"),
+  channel: document.getElementById("channelPage"),
+  video: document.getElementById("videoPage"),
+};
+const tabs = {
+  home: document.getElementById("homeTab"),
+  history: document.getElementById("historyTab"),
+  subs: document.getElementById("subsTab"),
+  upload: document.getElementById("uploadTab"),
+  profile: document.getElementById("profileTab"),
+};
+
+const homeVideos = document.getElementById("homeVideos");
+const historyVideos = document.getElementById("historyVideos");
+const subsVideos = document.getElementById("subsVideos");
+const userVideos = document.getElementById("userVideos");
+const channelVideos = document.getElementById("channelVideos");
+const recommendedVideos = document.getElementById("recommendedVideos");
+
+const uploadForm = document.getElementById("uploadForm");
+const uploadMsg = document.getElementById("uploadMsg");
+
+const profileImg = document.getElementById("profileImg");
+const profileUpload = document.getElementById("profileUpload");
+const profileName = document.getElementById("profileName");
+const editProfileBtn = document.getElementById("editProfileBtn");
+const editProfileSection = document.getElementById("editProfileSection");
+const newProfileName = document.getElementById("newProfileName");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const player = document.getElementById("player");
+const playerTitle = document.getElementById("playerTitle");
+const playerChannelLogo = document.getElementById("playerChannelLogo");
+const playerChannelName = document.getElementById("playerChannelName");
+const playerUploadTime = document.getElementById("playerUploadTime");
+const subscribeUnderBtn = document.getElementById("subscribeUnderBtn");
+const likeBtn = document.getElementById("likeBtn");
+const likeCount = document.getElementById("likeCount");
+const commentBtn = document.getElementById("commentBtn");
+const commentForm = document.getElementById("commentForm");
+const commentInput = document.getElementById("commentInput");
+const commentList = document.getElementById("commentList");
+const closePlayer = document.getElementById("closePlayer");
+const fixedVideoContainer = document.getElementById("fixedVideoContainer");
+
+const subscribeBtn = document.getElementById("subscribeBtn");
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+const videoLoader = document.getElementById("videoLoader");
+
+// ===============================
+// Navigation + Tabs
+// ===============================
+function showPage(page) {
+  Object.values(pages).forEach((p) => (p.style.display = "none"));
+  page.style.display = "block";
+  const disableSearch =
+    page === pages.channel ||
+    page === pages.history ||
+    page === pages.subs ||
+    page === pages.upload ||
+    page === pages.profile ||
+    page === pages.video;
+  searchInput.disabled = disableSearch;
+  searchBtn.disabled = disableSearch;
+}
+function setActiveTab(activeTab) {
+  Object.values(tabs).forEach((t) => t.classList.remove("active"));
+  activeTab.classList.add("active");
+}
+function openAtTop(pageEl) {
+  showPage(pageEl);
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+tabs.home.onclick = () => {
+  showPage(pages.home);
+  setActiveTab(tabs.home);
+  loadAllVideos();
+};
+tabs.history.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  showPage(pages.history);
+  setActiveTab(tabs.history);
+  loadHistory();
+};
+tabs.subs.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  showPage(pages.subs);
+  setActiveTab(tabs.subs);
+  loadSubscriptions();
+};
+tabs.upload.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  showPage(pages.upload);
+  setActiveTab(tabs.upload);
+};
+tabs.profile.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  showPage(pages.profile);
+  setActiveTab(tabs.profile);
+  loadUserVideos();
+};
+
+// ===============================
+// Utility
+// ===============================
+function fileToBase64(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+// ===============================
+// Upload
+// ===============================
+uploadForm.onsubmit = async (e) => {
+  e.preventDefault();
+  if (!currentUserId) return showLoginPopup();
+
+  const title = document.getElementById("videoTitle").value.trim();
+  const thumbFile = document.getElementById("thumbFile").files[0];
+  const thumbUrl = document.getElementById("thumbUrl").value.trim();
+  const videoFile = document.getElementById("videoFile").files[0];
+  const videoUrl = document.getElementById("videoUrl").value.trim();
+
+  uploadMsg.innerText = "Uploading...";
+  try {
+    let finalThumb = thumbUrl;
+    let finalVideo = videoUrl;
+    if (thumbFile) finalThumb = await fileToBase64(thumbFile);
+    if (videoFile) finalVideo = await fileToBase64(videoFile);
+
+    const userSnap = await get(ref(db, "users/" + currentUserId));
+    const user = userSnap.val() || {};
+
+    const vidRef = push(ref(db, "videos"));
+    await set(vidRef, {
+      id: vidRef.key,
+      title,
+      thumbnail: finalThumb,
+      videoUrl: finalVideo,
+      uploaderId: currentUserId,
+      uploaderName: user.name || "User",
+      uploaderLogo: user.logo || profileImg.src,
+      likes: 0,
+      likedBy: {},
+      createdAt: Date.now(),
+    });
+    uploadMsg.innerText = "✅ Uploaded successfully!";
+    uploadForm.reset();
+  } catch {
+    uploadMsg.innerText = "❌ Upload failed";
+  }
+};
+
+// ===============================
+// Load Videos
+// ===============================
+function loadAllVideos() {
+  const loader = document.getElementById("homeLoader");
+  loader.style.display = "flex";
+  homeVideos.innerHTML = "";
+  onValue(ref(db, "videos"), (snap) => {
+    const data = snap.val();
+    homeVideos.innerHTML = "";
+    loader.style.display = "none";
+    if (!data) return (homeVideos.innerHTML = "No videos yet.");
+    Object.values(data)
+      .sort(() => Math.random() - 0.5)
+      .forEach((v) => homeVideos.appendChild(createVideoCard(v)));
+  });
+}
+function createVideoCard(v) {
+  const div = document.createElement("div");
+  div.className = "video-card neon-border";
+  div.innerHTML = `
+    <img class="video-thumb" src="${v.thumbnail}" alt="${v.title}" />
+    <div class="video-info">
+      <img class="channel-logo" src="${v.uploaderLogo}" />
+      <div class="meta">
+        <div class="video-title">${v.title}</div>
+        <div class="video-author">${v.uploaderName}</div>
+        <div class="upload-time">${timeAgo(v.createdAt)}</div>
+      </div>
+    </div>`;
+  div.querySelector(".video-thumb").onclick = () => openVideo(v);
+  div.querySelector(".video-title").onclick = () => openVideo(v);
+  return div;
+}
+
+// ===============================
+// Open Video Fullscreen
+// ===============================
+async function openVideo(v) {
+  currentVideoId = v.id;
+  currentChannelId = v.uploaderId;
+  const header = document.querySelector("header");
+  const nav = document.querySelector("nav.bottom-nav");
+  header.style.display = "none";
+  nav.style.display = "none";
+  document.body.classList.add("video-open");
+  fixedVideoContainer.classList.add("full-video-active");
+  openAtTop(pages.video);
+
+  player.src = v.videoUrl;
+  playerTitle.innerText = v.title;
+  playerChannelLogo.src = v.uploaderLogo;
+  playerChannelName.innerText = v.uploaderName;
+  playerUploadTime.innerText = timeAgo(v.createdAt);
+
+  saveToHistory(v);
+  loadRecommended(v.id);
+}
+closePlayer.onclick = () => {
+  showPage(pages.home);
+  setActiveTab(tabs.home);
+  document.body.classList.remove("video-open");
+  document.querySelector("header").style.display = "flex";
+  document.querySelector("nav.bottom-nav").style.display = "flex";
+  fixedVideoContainer.classList.remove("full-video-active");
+  currentVideoId = null;
+};
+
+// ===============================
+// Recommended & History
+// ===============================
+function loadRecommended(id) {
+  onValue(ref(db, "videos"), (snap) => {
+    const d = snap.val();
+    recommendedVideos.innerHTML = "";
+    if (d)
+      Object.values(d)
+        .filter((v) => v.id !== id)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 6)
+        .forEach((v) => recommendedVideos.appendChild(createVideoCard(v)));
+  });
+}
+async function saveToHistory(v) {
+  if (!currentUserId) return;
+  await set(ref(db, `history/${currentUserId}/${v.id}`), v);
+}
+function loadHistory() {
+  onValue(ref(db, `history/${currentUserId}`), (snap) => {
+    historyVideos.innerHTML = "";
+    const d = snap.val();
+    if (d)
+      Object.values(d)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .forEach((v) => historyVideos.appendChild(createVideoCard(v)));
+  });
+}
+
+// ===============================
+// Comment Button
+// ===============================
+commentBtn.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  document.getElementById("commentsSection").classList.toggle("hidden");
+};
+
+// ===============================
+// Like Button
+// ===============================
+likeBtn.onclick = async () => {
+  if (!currentUserId || !currentVideoId) return showLoginPopup();
+  const vRef = ref(db, `videos/${currentVideoId}`);
+  const snap = await get(vRef);
+  if (!snap.exists()) return;
+  const v = snap.val();
+  const liked = v.likedBy && v.likedBy[currentUserId];
+  const likes = v.likes || 0;
+  const updates = {
+    likes: liked ? likes - 1 : likes + 1,
+    likedBy: { ...(v.likedBy || {}) },
+  };
+  if (liked) delete updates.likedBy[currentUserId];
+  else updates.likedBy[currentUserId] = true;
+  await update(vRef, updates);
+  likeCount.innerText = updates.likes;
+};
+
+// ===============================
+// Time Ago
+// ===============================
+function timeAgo(ts) {
+  const diff = (Date.now() - ts) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+  return `${Math.floor(diff / 86400)} days ago`;
+}
+
+// ===============================
+// Init
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+  showPage(pages.home);
+  setActiveTab(tabs.home);
+  loadAllVideos();
+});// ===============================
+// Firebase Imports
+// ===============================
+import {
+  getDatabase,
+  ref,
+  push,
+  set,
+  onValue,
+  update,
+  remove,
+  get,
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+
+// ===============================
+// Firebase Init
+// ===============================
+const app = getApp();
+const db = getDatabase(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+let currentUserId = null;
 let lastOpenedFromChannel = null;
 let currentVideoId = null;
 let currentChannelId = null;
@@ -126,17 +516,6 @@ const subscribeUnderBtn = document.getElementById("subscribeUnderBtn");
 const likeBtn = document.getElementById("likeBtn");
 const likeCount = document.getElementById("likeCount");
 const commentBtn = document.getElementById("commentBtn");
-
-if (commentBtn) {
-  commentBtn.onclick = () => {
-    if (!currentUserId) return showLoginPopup();
-    const commentsSection = document.getElementById("commentsSection");
-    commentsSection.classList.toggle("hidden");
-  };
-}
-
-
-
 const commentForm = document.getElementById("commentForm");
 const commentInput = document.getElementById("commentInput");
 const commentList = document.getElementById("commentList");
@@ -426,19 +805,12 @@ player.onerror = () => {
 }
 
 closePlayer.onclick = () => {
+  showPage(pages.home);
+  setActiveTab(tabs.home);
   document.body.classList.remove("video-open");
   hideUIForLoader(false);
   currentVideoId = null;
-
-  // If video was opened from a channel, go back there
-  if (lastOpenedFromChannel) {
-    const { id, name, logo } = lastOpenedFromChannel;
-    openChannel(id, name, logo);
-  } else {
-    showPage(pages.home);
-    setActiveTab(tabs.home);
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }
+  window.scrollTo({ top: 0, behavior: "instant" });
 };
 
 // ===============================
@@ -448,13 +820,11 @@ function loadRecommended(id) {
   onValue(ref(db, "videos"), (snap) => {
     const d = snap.val();
     recommendedVideos.innerHTML = "";
-    if (d) {
+    if (d)
       Object.values(d)
         .filter((v) => v.id !== id)
-        .sort(() => Math.random() - 0.5) // random order
         .slice(0, 6)
         .forEach((v) => recommendedVideos.appendChild(createVideoCard(v)));
-    }
   });
 }
 
@@ -657,24 +1027,12 @@ searchBtn.onclick = async () => {
 // Comments + Likes (optional basic)
 // ===============================
 if (likeBtn && likeCount) {
-  async function updateLikeUI() {
-    if (!currentUserId || !currentVideoId) return;
-    const snap = await get(ref(db, `videos/${currentVideoId}/likedBy/${currentUserId}`));
-    if (snap.exists()) {
-      likeBtn.classList.add("liked");
-    } else {
-      likeBtn.classList.remove("liked");
-    }
-  }
-
   likeBtn.onclick = async () => {
     if (!currentUserId || !currentVideoId) return showLoginPopup();
-
     const vRef = ref(db, `videos/${currentVideoId}`);
     const snap = await get(vRef);
     if (!snap.exists()) return;
     const v = snap.val();
-
     const liked = v.likedBy && v.likedBy[currentUserId];
     const likes = v.likes || 0;
     const updates = {
@@ -685,56 +1043,41 @@ if (likeBtn && likeCount) {
     else updates.likedBy[currentUserId] = true;
     await update(vRef, updates);
     likeCount.innerText = updates.likes;
-    updateLikeUI();
-  };
-
-  // Auto update when video opens
-  const _origOpenVideoLike = openVideo;
-  openVideo = async function (v) {
-    await _origOpenVideoLike(v);
-    likeCount.innerText = v.likes || 0;
-    updateLikeUI();
   };
 }
 if (commentForm && commentInput && commentList) {
-  // ✅ comment add with name + logo
   commentForm.onsubmit = async (e) => {
     e.preventDefault();
     if (!currentUserId || !currentVideoId) return showLoginPopup();
-
     const text = commentInput.value.trim();
     if (!text) return;
-
-    const userSnap = await get(ref(db, "users/" + currentUserId));
-    const user = userSnap.val() || {};
-
     const cRef = push(ref(db, `comments/${currentVideoId}`));
     await set(cRef, {
       id: cRef.key,
       text,
       userId: currentUserId,
-      userName: user.name || "User",
-      userLogo: user.logo || "",
       createdAt: Date.now(),
     });
-
     commentInput.value = "";
   };
 
-  // ✅ Load comments with profile pic & name directly
   function loadComments(vid) {
     commentList.innerHTML = "";
-    onValue(ref(db, `comments/${vid}`), (snap) => {
+    onValue(ref(db, `comments/${vid}`), async (snap) => {
       commentList.innerHTML = "";
       const d = snap.val() || {};
-      const entries = Object.values(d).sort((a, b) => a.createdAt - b.createdAt);
+      const entries = Object.values(d).sort(
+        (a, b) => a.createdAt - b.createdAt
+      );
       for (const c of entries) {
+        const uSnap = await get(ref(db, `users/${c.userId}`));
+        const u = uSnap.val() || {};
         const el = document.createElement("div");
         el.className = "comment-item";
         el.innerHTML = `
           <div class="c-head">
-            <img class="c-dp" src="${c.userLogo || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}" />
-            <span class="c-name">${c.userName || "User"}</span>
+            <img class="c-dp" src="${u.logo || ""}" />
+            <span class="c-name">${u.name || "User"}</span>
             <span class="c-time">${timeAgo(c.createdAt)}</span>
           </div>
           <div class="c-text">${c.text}</div>
@@ -744,7 +1087,7 @@ if (commentForm && commentInput && commentList) {
     });
   }
 
-  // 🔁 Load comments when video opens
+  // Load comments when video opens
   const _origOpenVideo = openVideo;
   openVideo = async function (v) {
     await _origOpenVideo(v);
@@ -779,5 +1122,3 @@ document.addEventListener("DOMContentLoaded", () => {
   setActiveTab(tabs.home);
   loadAllVideos();
 });
-
-

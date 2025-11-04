@@ -808,4 +808,8 @@ body.video-open {
 body.video-open {
   overflow: hidden; /* prevent body scroll */
 }
-
+#likeBtn.liked {
+  background: #ff3300;
+  color: #fff;
+  box-shadow: 0 0 20px #ff3300;
+}

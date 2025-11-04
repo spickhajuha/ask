@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
+  <title>Hello, World!</title>
+</head>
+<body>
+  <h1>
+    Hello, World!
+  </h1>
+</body>
+</html>
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDwnnT438MxZS_MZgYCkexqO2Xl79lr_ww",
+  authDomain: "webex-aa9bc.firebaseapp.com",
+  databaseURL: "https://webex-aa9bc-default-rtdb.firebaseio.com",
+  projectId: "webex-aa9bc",
+  storageBucket: "webex-aa9bc.firebasestorage.app",
+  messagingSenderId: "414824337045",
+  appId: "1:414824337045:web:8dc5a4c788c6958e0b159c",
+  measurementId: "G-JKQS0RCSNH"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
