@@ -1,0 +1,756 @@
+// ===============================
+// Firebase Imports
+// ===============================
+import {
+  getDatabase,
+  ref,
+  push,
+  set,
+  onValue,
+  update,
+  remove,
+  get,
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+
+// ===============================
+// Firebase Init
+// ===============================
+const app = getApp();
+const db = getDatabase(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+let currentUserId = null;
+let lastOpenedFromChannel = null;
+let currentVideoId = null;
+let currentChannelId = null;
+
+// ===============================
+// Auth Handling
+// ===============================
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUserId = user.uid;
+    hideLoginPopup();
+    loadUserData();
+    loadAllVideos();
+  } else {
+    currentUserId = null;
+  }
+});
+
+// ===============================
+// Login Popup
+// ===============================
+const loginPopup = document.getElementById("loginPopup");
+const googleLoginBtn = document.getElementById("googleLoginBtn");
+const closeLoginPopup = document.getElementById("closeLoginPopup");
+
+function showLoginPopup() {
+  loginPopup.classList.remove("hidden");
+}
+function hideLoginPopup() {
+  loginPopup.classList.add("hidden");
+}
+googleLoginBtn.onclick = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    await set(ref(db, "users/" + user.uid), {
+      name: user.displayName,
+      logo: user.photoURL,
+    });
+    currentUserId = user.uid;
+    hideLoginPopup();
+    loadUserData();
+    loadAllVideos();
+  } catch (err) {
+    alert("Sign-in failed: " + err.message);
+  }
+};
+closeLoginPopup.onclick = hideLoginPopup;
+
+// ===============================
+// DOM Elements
+// ===============================
+const pages = {
+  home: document.getElementById("homePage"),
+  history: document.getElementById("historyPage"),
+  subs: document.getElementById("subsPage"),
+  upload: document.getElementById("uploadPage"),
+  profile: document.getElementById("profilePage"),
+  channel: document.getElementById("channelPage"),
+  video: document.getElementById("videoPage"),
+};
+const tabs = {
+  home: document.getElementById("homeTab"),
+  history: document.getElementById("historyTab"),
+  subs: document.getElementById("subsTab"),
+  upload: document.getElementById("uploadTab"),
+  profile: document.getElementById("profileTab"),
+};
+
+const homeVideos = document.getElementById("homeVideos");
+const historyVideos = document.getElementById("historyVideos");
+const subsVideos = document.getElementById("subsVideos");
+const userVideos = document.getElementById("userVideos");
+const channelVideos = document.getElementById("channelVideos");
+const recommendedVideos = document.getElementById("recommendedVideos");
+
+const uploadForm = document.getElementById("uploadForm");
+const uploadMsg = document.getElementById("uploadMsg");
+
+const profileImg = document.getElementById("profileImg");
+const profileUpload = document.getElementById("profileUpload");
+const profileName = document.getElementById("profileName");
+const editProfileBtn = document.getElementById("editProfileBtn");
+const editProfileSection = document.getElementById("editProfileSection");
+const newProfileName = document.getElementById("newProfileName");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const player = document.getElementById("player");
+const playerTitle = document.getElementById("playerTitle");
+const playerChannelLogo = document.getElementById("playerChannelLogo");
+const playerChannelName = document.getElementById("playerChannelName");
+const playerUploadTime = document.getElementById("playerUploadTime");
+const subscribeUnderBtn = document.getElementById("subscribeUnderBtn");
+const likeBtn = document.getElementById("likeBtn");
+const likeCount = document.getElementById("likeCount");
+const commentBtn = document.getElementById("commentBtn");
+
+if (commentBtn) {
+  commentBtn.onclick = () => {
+    if (!currentUserId) return showLoginPopup();
+    const commentsSection = document.getElementById("commentsSection");
+    commentsSection.classList.toggle("hidden");
+  };
+}
+
+
+
+const commentForm = document.getElementById("commentForm");
+const commentInput = document.getElementById("commentInput");
+const commentList = document.getElementById("commentList");
+const closePlayer = document.getElementById("closePlayer");
+
+const subscribeBtn = document.getElementById("subscribeBtn");
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+
+const videoLoader = document.getElementById("videoLoader");
+
+// ===============================
+// Navigation
+// ===============================
+function showPage(page) {
+  Object.values(pages).forEach((p) => (p.style.display = "none"));
+  page.style.display = "block";
+
+  const disableSearch =
+    page === pages.channel ||
+    page === pages.history ||
+    page === pages.subs ||
+    page === pages.upload ||
+    page === pages.profile ||
+    page === pages.video;
+
+  searchInput.disabled = disableSearch;
+  searchBtn.disabled = disableSearch;
+}
+function setActiveTab(activeTab) {
+  Object.values(tabs).forEach((t) => t.classList.remove("active"));
+  activeTab.classList.add("active");
+}
+
+// Helper: Always open at top
+function openAtTop(pageEl) {
+  showPage(pageEl);
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+// ===============================
+// Tabs Events
+// ===============================
+tabs.home.onclick = () => {
+  showPage(pages.home);
+  setActiveTab(tabs.home);
+  loadAllVideos();
+};
+tabs.history.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  showPage(pages.history);
+  setActiveTab(tabs.history);
+  loadHistory();
+};
+tabs.subs.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  showPage(pages.subs);
+  setActiveTab(tabs.subs);
+  loadSubscriptions();
+};
+tabs.upload.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  showPage(pages.upload);
+  setActiveTab(tabs.upload);
+};
+tabs.profile.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  showPage(pages.profile);
+  setActiveTab(tabs.profile);
+  loadUserVideos();
+};
+
+// ===============================
+// Logout
+// ===============================
+logoutBtn.onclick = async () => {
+  await signOut(auth);
+  alert("Signed out successfully!");
+  currentUserId = null;
+  showPage(pages.home);
+  setActiveTab(tabs.home);
+};
+
+// ===============================
+// Utility Functions
+// ===============================
+function fileToBase64(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+function hideUIForLoader(show) {
+  const header = document.querySelector("header");
+  const nav = document.querySelector("nav.bottom-nav");
+  if (show) {
+    header.style.display = "none";
+    nav.style.display = "none";
+  } else {
+    header.style.display = "flex";
+    nav.style.display = "flex";
+  }
+}
+
+// ===============================
+// Upload
+// ===============================
+uploadForm.onsubmit = async (e) => {
+  e.preventDefault();
+  if (!currentUserId) return showLoginPopup();
+
+  const title = document.getElementById("videoTitle").value.trim();
+  const thumbFile = document.getElementById("thumbFile").files[0];
+  const thumbUrl = document.getElementById("thumbUrl").value.trim();
+  const videoFile = document.getElementById("videoFile").files[0];
+  const videoUrl = document.getElementById("videoUrl").value.trim();
+
+  uploadMsg.innerText = "Uploading...";
+
+  try {
+    let finalThumb = thumbUrl;
+    let finalVideo = videoUrl;
+    if (thumbFile) finalThumb = await fileToBase64(thumbFile);
+    if (videoFile) finalVideo = await fileToBase64(videoFile);
+
+    const userSnap = await get(ref(db, "users/" + currentUserId));
+    const user = userSnap.val() || {};
+
+    const vidRef = push(ref(db, "videos"));
+    await set(vidRef, {
+      id: vidRef.key,
+      title,
+      thumbnail: finalThumb,
+      videoUrl: finalVideo,
+      uploaderId: currentUserId,
+      uploaderName: user.name || "User",
+      uploaderLogo: user.logo || profileImg.src,
+      likes: 0,
+      likedBy: {},
+      createdAt: Date.now(),
+    });
+
+    uploadMsg.innerText = "✅ Uploaded successfully!";
+    uploadForm.reset();
+  } catch {
+    uploadMsg.innerText = "❌ Upload failed";
+  }
+};
+
+// ===============================
+// Load All Videos
+// ===============================
+function loadAllVideos() {
+  const loader = document.getElementById("homeLoader");
+  loader.style.display = "flex";
+  hideUIForLoader(true);
+  homeVideos.innerHTML = "";
+
+  onValue(ref(db, "videos"), (snap) => {
+    const data = snap.val();
+    homeVideos.innerHTML = "";
+    loader.style.display = "none";
+    hideUIForLoader(false);
+    if (!data) {
+      homeVideos.innerHTML = `No videos yet.`;
+      return;
+    }
+    Object.values(data)
+  .sort(() => Math.random() - 0.5) // random order
+  .forEach((v) => homeVideos.appendChild(createVideoCard(v)));
+  });
+}
+
+// ===============================
+// Create Video Card
+// ===============================
+function createVideoCard(v, isUserVideo = false) {
+  const div = document.createElement("div");
+  div.className = "video-card neon-border";
+  div.innerHTML = `
+    <img class="video-thumb" src="${v.thumbnail}" alt="${v.title}" />
+    <div class="video-info">
+      <img class="channel-logo" src="${v.uploaderLogo || ""}" alt="${v.uploaderName || "Channel"}" />
+      <div class="meta">
+        <div class="video-title">${v.title}</div>
+        <div class="video-author">${v.uploaderName || "User"}</div>
+        <div class="upload-time">${timeAgo(v.createdAt)}</div>
+      </div>
+      ${isUserVideo ? `
+      <div class="video-actions-mini">
+        <button class="edit-mini">Edit</button>
+        <button class="delete-mini">Delete</button>
+      </div>` : ``}
+    </div>
+  `;
+
+  // Open video full-screen popup
+  div.querySelector(".video-thumb").onclick = () => openVideo(v);
+  div.querySelector(".video-title").onclick = () => openVideo(v);
+
+  // Channel DP click -> channel open
+  const chLogo = div.querySelector(".channel-logo");
+  chLogo.onclick = (e) => {
+    e.stopPropagation();
+    openChannel(v.uploaderId, v.uploaderName || "User", v.uploaderLogo || "");
+  };
+
+  // Author name click -> channel open
+  const authorEl = div.querySelector(".video-author");
+  authorEl.style.cursor = "pointer";
+  authorEl.onclick = (e) => {
+    e.stopPropagation();
+    openChannel(v.uploaderId, v.uploaderName || "User", v.uploaderLogo || "");
+  };
+
+  // Optional: user video edit/delete handlers (if you had them earlier)
+  if (isUserVideo) {
+    const editBtn = div.querySelector(".edit-mini");
+    const delBtn = div.querySelector(".delete-mini");
+    if (editBtn) {
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        const newTitle = prompt("New title", v.title);
+        if (newTitle) update(ref(db, "videos/" + v.id), { title: newTitle });
+      };
+    }
+    if (delBtn) {
+      delBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (confirm("Delete this video?")) {
+          await remove(ref(db, "videos/" + v.id));
+        }
+      };
+    }
+  }
+
+  return div;
+}
+
+// ===============================
+// Fullscreen Video Popup + Loader
+// ===============================
+async function openVideo(v) {
+  currentVideoId = v.id;
+  currentChannelId = v.uploaderId;
+
+  // Loader ON + lock body scroll + show video page at top
+  if (videoLoader) videoLoader.style.display = "flex";
+  document.body.classList.add("video-open");
+  openAtTop(pages.video);
+  hideUIForLoader(true);
+
+  // Populate meta
+  playerTitle.innerText = v.title || "";
+  playerChannelLogo.src = v.uploaderLogo || "";
+  playerChannelName.innerText = v.uploaderName || "User";
+  playerUploadTime.innerText = timeAgo(v.createdAt);
+
+  // Channel clickable under player
+  playerChannelLogo.onclick = () =>
+    openChannel(v.uploaderId, v.uploaderName || "User", v.uploaderLogo || "");
+  playerChannelName.onclick = () =>
+    openChannel(v.uploaderId, v.uploaderName || "User", v.uploaderLogo || "");
+
+  // Subscribe button for this channel
+  updateSubscribeButton(subscribeUnderBtn, v.uploaderId);
+
+  // Load actual video
+player.src = v.videoUrl;
+player.load();
+player.onloadeddata = () => {
+  if (videoLoader) videoLoader.style.display = "none";
+  hideUIForLoader(false);
+};
+player.onerror = () => {
+  videoLoader.style.display = "none";
+  hideUIForLoader(false);
+  alert("⚠️ Video failed to load. Please check your video link or file.");
+};
+
+  // History + recommended
+  saveToHistory(v);
+  loadRecommended(v.id);
+
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+closePlayer.onclick = () => {
+  document.body.classList.remove("video-open");
+  hideUIForLoader(false);
+  currentVideoId = null;
+
+  // If video was opened from a channel, go back there
+  if (lastOpenedFromChannel) {
+    const { id, name, logo } = lastOpenedFromChannel;
+    openChannel(id, name, logo);
+  } else {
+    showPage(pages.home);
+    setActiveTab(tabs.home);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+};
+
+// ===============================
+// Recommended, History, Subs, Profile
+// ===============================
+function loadRecommended(id) {
+  onValue(ref(db, "videos"), (snap) => {
+    const d = snap.val();
+    recommendedVideos.innerHTML = "";
+    if (d) {
+      Object.values(d)
+        .filter((v) => v.id !== id)
+        .sort(() => Math.random() - 0.5) // random order
+        .slice(0, 6)
+        .forEach((v) => recommendedVideos.appendChild(createVideoCard(v)));
+    }
+  });
+}
+
+async function saveToHistory(v) {
+  if (!currentUserId) return;
+  await set(ref(db, `history/${currentUserId}/${v.id}`), v);
+}
+
+function loadHistory() {
+  onValue(ref(db, `history/${currentUserId}`), (snap) => {
+    historyVideos.innerHTML = "";
+    const d = snap.val();
+    if (d)
+      Object.values(d)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .forEach((v) => historyVideos.appendChild(createVideoCard(v)));
+  });
+}
+
+async function loadSubscriptions() {
+  const sSnap = await get(ref(db, `subscriptions/${currentUserId}`));
+  subsVideos.innerHTML = "Loading...";
+  if (!sSnap.exists()) {
+    subsVideos.innerHTML = "No subscriptions yet.";
+    return;
+  }
+  const subs = Object.keys(sSnap.val());
+  onValue(ref(db, "videos"), (snap) => {
+    const d = snap.val();
+    subsVideos.innerHTML = "";
+    if (d) {
+      const vids = Object.values(d)
+        .filter((v) => subs.includes(v.uploaderId))
+        .sort((a, b) => b.createdAt - a.createdAt);
+      if (vids.length)
+        vids.forEach((v) => subsVideos.appendChild(createVideoCard(v)));
+      else subsVideos.innerHTML = "No videos from subscriptions yet.";
+    }
+  });
+}
+
+function loadUserVideos() {
+  onValue(ref(db, "videos"), (snap) => {
+    userVideos.innerHTML = "";
+    const d = snap.val();
+    if (d)
+      Object.values(d)
+        .filter((v) => v.uploaderId === currentUserId)
+        .forEach((v) => userVideos.appendChild(createVideoCard(v, true)));
+  });
+}
+
+// ===============================
+// Subscriptions
+// ===============================
+subscribeUnderBtn.onclick = () => {
+  if (!currentUserId) return showLoginPopup();
+  toggleSubscribe(currentChannelId);
+};
+if (subscribeBtn)
+  subscribeBtn.onclick = () => {
+    if (!currentUserId) return showLoginPopup();
+    toggleSubscribe(currentChannelId);
+  };
+
+async function toggleSubscribe(uid) {
+  if (uid === currentUserId) return;
+  const sRef = ref(db, `subscriptions/${currentUserId}/${uid}`);
+  const snap = await get(sRef);
+  if (snap.exists()) await remove(sRef);
+  else await set(sRef, true);
+  updateSubscribeButton(subscribeUnderBtn, uid);
+  updateSubscribeButton(subscribeBtn, uid);
+}
+
+async function updateSubscribeButton(btn, uid) {
+  if (!btn) return;
+  if (uid === currentUserId) {
+    btn.style.display = "none";
+    return;
+  } else btn.style.display = "inline-flex";
+  const snap = await get(ref(db, `subscriptions/${currentUserId}/${uid}`));
+  btn.innerHTML = snap.exists() ? `Subscribed` : `Subscribe`;
+}
+
+// ===============================
+// Channel Page (Open from Top)
+// ===============================
+function openChannel(uid, name, logo) {
+  lastOpenedFromChannel = { id: uid, name, logo };
+  openAtTop(pages.channel);
+  document.body.classList.remove("video-open");
+  hideUIForLoader(false);
+
+  document.getElementById("channelName").innerText = name;
+  document.getElementById("channelLogo").src = logo;
+  currentChannelId = uid;
+
+  if (uid === currentUserId) {
+    subscribeBtn.style.display = "none";
+  } else {
+    subscribeBtn.style.display = "inline-flex";
+    updateSubscribeButton(subscribeBtn, uid);
+  }
+
+  onValue(ref(db, "videos"), (snap) => {
+    const d = snap.val();
+    channelVideos.innerHTML = "";
+    if (d) {
+      Object.values(d)
+        .filter((v) => v.uploaderId === uid)
+        .forEach((v) => channelVideos.appendChild(createVideoCard(v)));
+    }
+  });
+
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+// ===============================
+// Profile Update (Name + DP)
+// ===============================
+editProfileBtn.onclick = () => {
+  editProfileSection.classList.toggle("hidden");
+};
+profileImg.onclick = () => profileUpload.click();
+profileUpload.onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const base64 = await fileToBase64(f);
+  profileImg.src = base64;
+  await update(ref(db, "users/" + currentUserId), { logo: base64 });
+  updateUserVideosMeta({ uploaderLogo: base64 });
+};
+saveProfileBtn.onclick = async () => {
+  const n = newProfileName.value.trim();
+  if (!n) return;
+  profileName.innerText = n;
+  await update(ref(db, "users/" + currentUserId), { name: n });
+  editProfileSection.classList.add("hidden");
+  updateUserVideosMeta({ uploaderName: n });
+};
+
+// Update all user videos meta on profile changes
+async function updateUserVideosMeta(updateObj) {
+  const snap = await get(ref(db, "videos"));
+  if (!snap.exists()) return;
+  const all = snap.val();
+  for (const id in all) {
+    const vid = all[id];
+    if (vid.uploaderId === currentUserId) {
+      await update(ref(db, "videos/" + id), updateObj);
+    }
+  }
+}
+
+// Load current user data
+function loadUserData() {
+  onValue(ref(db, "users/" + currentUserId), (snap) => {
+    const d = snap.val();
+    if (d) {
+      if (d.name) profileName.innerText = d.name;
+      if (d.logo) profileImg.src = d.logo;
+    }
+  });
+}
+
+// ===============================
+// Search
+// ===============================
+searchBtn.onclick = async () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) return;
+
+  if (currentUserId)
+    await set(ref(db, `searchHistory/${currentUserId}/${Date.now()}`), {
+      query: q,
+    });
+
+  const loader = document.getElementById("homeLoader");
+  loader.style.display = "flex";
+  hideUIForLoader(true);
+
+  onValue(ref(db, "videos"), (snap) => {
+    const d = snap.val();
+    homeVideos.innerHTML = "";
+    loader.style.display = "none";
+    hideUIForLoader(false);
+    if (d) {
+      const results = Object.values(d).filter((v) =>
+        v.title.toLowerCase().includes(q)
+      );
+      if (results.length)
+        results.forEach((v) => homeVideos.appendChild(createVideoCard(v)));
+      else homeVideos.innerHTML = `No videos found.`;
+    }
+  });
+};
+
+// ===============================
+// Comments + Likes (optional basic)
+// ===============================
+if (likeBtn && likeCount) {
+  likeBtn.onclick = async () => {
+    if (!currentUserId || !currentVideoId) return showLoginPopup();
+    const vRef = ref(db, `videos/${currentVideoId}`);
+    const snap = await get(vRef);
+    if (!snap.exists()) return;
+    const v = snap.val();
+    const liked = v.likedBy && v.likedBy[currentUserId];
+    const likes = v.likes || 0;
+    const updates = {
+      likes: liked ? Math.max(0, likes - 1) : likes + 1,
+      likedBy: { ...(v.likedBy || {}) },
+    };
+    if (liked) delete updates.likedBy[currentUserId];
+    else updates.likedBy[currentUserId] = true;
+    await update(vRef, updates);
+    likeCount.innerText = updates.likes;
+  };
+}
+if (commentForm && commentInput && commentList) {
+  commentForm.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!currentUserId || !currentVideoId) return showLoginPopup();
+    const text = commentInput.value.trim();
+    if (!text) return;
+    const cRef = push(ref(db, `comments/${currentVideoId}`));
+    await set(cRef, {
+      id: cRef.key,
+      text,
+      userId: currentUserId,
+      createdAt: Date.now(),
+    });
+    commentInput.value = "";
+  };
+
+  function loadComments(vid) {
+    commentList.innerHTML = "";
+    onValue(ref(db, `comments/${vid}`), async (snap) => {
+      commentList.innerHTML = "";
+      const d = snap.val() || {};
+      const entries = Object.values(d).sort(
+        (a, b) => a.createdAt - b.createdAt
+      );
+      for (const c of entries) {
+        const uSnap = await get(ref(db, `users/${c.userId}`));
+        const u = uSnap.val() || {};
+        const el = document.createElement("div");
+        el.className = "comment-item";
+        el.innerHTML = `
+          <div class="c-head">
+            <img class="c-dp" src="${u.logo || ""}" />
+            <span class="c-name">${u.name || "User"}</span>
+            <span class="c-time">${timeAgo(c.createdAt)}</span>
+          </div>
+          <div class="c-text">${c.text}</div>
+        `;
+        commentList.appendChild(el);
+      }
+    });
+  }
+
+  // Load comments when video opens
+  const _origOpenVideo = openVideo;
+  openVideo = async function (v) {
+    await _origOpenVideo(v);
+    loadComments(v.id);
+  };
+}
+
+// ===============================
+// Utility: Time Ago
+// ===============================
+function timeAgo(timestamp) {
+  const now = Date.now();
+  const diff = Math.floor((now - timestamp) / 1000);
+  if (diff < 60) return "just now";
+  const mins = Math.floor(diff / 60);
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} mo ago`;
+  const years = Math.floor(months / 12);
+  return `${years} yr ago`;
+}
+
+// ===============================
+// App Init
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+  showPage(pages.home);
+  setActiveTab(tabs.home);
+  loadAllVideos();
+});
+
+

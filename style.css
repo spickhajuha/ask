@@ -372,19 +372,43 @@ nav button:hover {
 /* ===============================
    FIXED VIDEO PLAYER (NO SCROLL)
 =============================== */
+/* ===============================
+   FIXED MAIN PLAYER (UNSCROLLABLE)
+=============================== */
+/* ===============================
+   VIDEO PAGE – MAIN PLAYER FIXED (16:9)
+=============================== */
+
 #videoPage {
-  overflow: hidden !important;
+  overflow-y: auto;
+  padding-bottom: 100px;
+  background: #000;
 }
 
-.video-container {
-  position: fixed;
-  top: 60px;
-  left: 0;
+/* Main player stays fixed at top with padding */
+#player {
+  position: sticky;
+  top: 0;
   width: 100%;
-  height: calc(100vh - 120px);
-  overflow-y: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
   background: #000;
-  padding-bottom: 100px;
+  z-index: 50;
+  border: none;
+  padding: 18px 0; /* padding to give small top-bottom space */
+}
+
+/* When video is open, hide header and footer */
+body.video-open header,
+body.video-open nav.bottom-nav {
+  display: none !important;
+}
+
+/* Allow everything else to scroll */
+.video-meta,
+#commentsSection,
+.recommended-section {
+  padding: 1px;
 }
 
 #player {
@@ -452,7 +476,7 @@ nav button:hover {
 .recommended-section .video-list {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 18px;
 }
 
 /* ===============================
@@ -627,10 +651,10 @@ nav button:hover {
 
 #videoLoader {
   position: fixed;
-  top: 60px;
+  top: 6px;
   left: 0;
   width: 100%;
-  height: 50vh;
+  height: 100vh;
   background: #000;
   z-index: 1000;
 }
@@ -735,3 +759,53 @@ body.video-open {
   background: #ff0000;
   box-shadow: 0 0 25px #ff0000;
 }
+.full-video-active {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #000;
+  z-index: 999;
+  overflow-y: auto;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.full-video-active #player {
+  width: 100%;
+  height: 100vh;
+  object-fit: contain;
+}
+.full-video-active .video-meta,
+.full-video-active .recommended-section {
+  padding: 15px;
+}
+/* Keep video 16:9 fixed at top */
+.fixed-video {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: black;
+  z-index: 10;
+}
+
+.fixed-video video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Scrollable rest of content */
+.scrollable-video-content {
+  overflow-y: auto;
+  max-height: calc(100vh - (100vw / 16 * 9)); /* rest space after 16:9 video */
+  padding-bottom: 100px;
+}
+
+body.video-open {
+  overflow: hidden; /* prevent body scroll */
+}
+
