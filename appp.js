@@ -590,14 +590,24 @@ async function toggleSubscribe(uid) {
   updateSubscribeButton(subscribeBtn, uid);
 }
 
+// ===============================
+// Update Subscribe Button (Color Change)
+// ===============================
 async function updateSubscribeButton(btn, uid) {
   if (!btn) return;
   if (uid === currentUserId) {
     btn.style.display = "none";
     return;
   } else btn.style.display = "inline-flex";
+
   const snap = await get(ref(db, `subscriptions/${currentUserId}/${uid}`));
-  btn.innerHTML = snap.exists() ? `Subscribed` : `Subscribe`;
+  if (snap.exists()) {
+    btn.innerHTML = `Subscribed`;
+    btn.classList.add("subscribed"); // 🔵 blue when subscribed
+  } else {
+    btn.innerHTML = `<i class="fa-solid fa-bell"></i> Subscribe`;
+    btn.classList.remove("subscribed"); // 🟠 orange when not
+  }
 }
 
 // ===============================
@@ -687,18 +697,38 @@ function loadUserData() {
 // ===============================
 // SEARCH BUTTON + HISTORY
 // ===============================
+// ===============================
+// SEARCH BUTTON (Show history only when clicked)
+// ===============================
+// ===============================
+// SEARCH BUTTON (Unique + Show history only when clicked)
+// ===============================
 searchBtn.onclick = async () => {
   const q = searchInput.value.trim().toLowerCase();
   if (!q) return;
 
-  // ✅ Save search to Firebase history
+  // ✅ Save search only if not duplicate
   if (currentUserId) {
-    const sRef = ref(db, `searchHistory/${currentUserId}/${Date.now()}`);
-    await set(sRef, { query: q, time: Date.now() });
+    const sRef = ref(db, `searchHistory/${currentUserId}`);
+    const snap = await get(sRef);
+    const existing = snap.val() ? Object.values(snap.val()) : [];
+
+    // Check duplicate (ignore case)
+    const already = existing.some((s) => s.query.toLowerCase() === q);
+    if (!already) {
+      await set(ref(db, `searchHistory/${currentUserId}/${Date.now()}`), {
+        query: q,
+        time: Date.now(),
+      });
+    }
   }
 
-  loadSearchHistory(); // Refresh search history list
+  // ✅ Show search history only when search clicked
+  const container = document.getElementById("searchHistoryContainer");
+  container.classList.remove("hidden");
+  loadSearchHistory();
 
+  // ✅ Search videos
   const loader = document.getElementById("homeLoader");
   loader.style.display = "flex";
   hideUIForLoader(true);
@@ -722,9 +752,11 @@ searchBtn.onclick = async () => {
     }
   });
 };
-
 // ===============================
 // SEARCH HISTORY DISPLAY
+// ===============================
+// ===============================
+// SEARCH HISTORY DISPLAY (Unique + Max 8)
 // ===============================
 function loadSearchHistory() {
   const container = document.getElementById("searchHistoryContainer");
@@ -738,11 +770,23 @@ function loadSearchHistory() {
     const d = snap.val();
     list.innerHTML = "";
     if (d) {
+      // Convert to array, remove duplicates, and show last 8
+      let entries = Object.values(d);
+      const unique = [];
+      const seen = new Set();
+
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const q = entries[i].query.toLowerCase();
+        if (!seen.has(q)) {
+          seen.add(q);
+          unique.push(entries[i]);
+        }
+      }
+
+      const latest = unique.slice(0, 8); // show max 8
       container.classList.remove("hidden");
-      const entries = Object.values(d)
-        .slice(-10) // last 10 searches
-        .reverse();
-      entries.forEach((s) => {
+
+      latest.forEach((s) => {
         const item = document.createElement("button");
         item.className = "search-history-item";
         item.textContent = s.query;
@@ -757,7 +801,23 @@ function loadSearchHistory() {
     }
   });
 }
+// ===============================
+// CLEAR ALL SEARCH HISTORY BUTTON
+// ===============================
+const clearBtn = document.getElementById("clearSearchHistoryBtn");
+if (clearBtn) {
+  clearBtn.onclick = async () => {
+    if (!currentUserId) return showLoginPopup();
 
+    if (confirm("Are you sure you want to clear all your search history?")) {
+      await remove(ref(db, `searchHistory/${currentUserId}`));
+      const list = document.getElementById("searchHistoryList");
+      list.innerHTML = "";
+      document.getElementById("searchHistoryContainer").classList.add("hidden");
+      alert("✅ All search history cleared!");
+    }
+  };
+}
 // ===============================
 // Comments + Likes (optional basic)
 // ===============================
@@ -772,32 +832,33 @@ if (likeBtn && likeCount) {
     }
   }
 
-  likeBtn.onclick = async () => {
-    if (!currentUserId || !currentVideoId) return showLoginPopup();
+  // ===============================
+// Like Button (Glow / Unglow)
+// ===============================
+likeBtn.onclick = async () => {
+  if (!currentUserId || !currentVideoId) return showLoginPopup();
 
-    const vRef = ref(db, `videos/${currentVideoId}`);
-    const snap = await get(vRef);
-    if (!snap.exists()) return;
-    const v = snap.val();
+  const vRef = ref(db, `videos/${currentVideoId}`);
+  const snap = await get(vRef);
+  if (!snap.exists()) return;
+  const v = snap.val();
 
-    const liked = v.likedBy && v.likedBy[currentUserId];
-    const likes = v.likes || 0;
-    const updates = {
-      likes: liked ? Math.max(0, likes - 1) : likes + 1,
-      likedBy: { ...(v.likedBy || {}) },
-    };
-    if (liked) delete updates.likedBy[currentUserId];
-    else updates.likedBy[currentUserId] = true;
-    await update(vRef, updates);
-likeCount.innerText = updates.likes;
-
-// Turant glow/unglow show
-if (liked) {
-  likeBtn.classList.remove("liked");
-} else {
-  likeBtn.classList.add("liked");
-}
+  const liked = v.likedBy && v.likedBy[currentUserId];
+  const likes = v.likes || 0;
+  const updates = {
+    likes: liked ? Math.max(0, likes - 1) : likes + 1,
+    likedBy: { ...(v.likedBy || {}) },
   };
+
+  if (liked) delete updates.likedBy[currentUserId];
+  else updates.likedBy[currentUserId] = true;
+
+  await update(vRef, updates);
+  likeCount.innerText = updates.likes;
+
+  // 🔥 Instantly toggle glow
+  likeBtn.classList.toggle("liked", !liked);
+};
 
   // Auto update when video opens
   const _origOpenVideoLike = openVideo;

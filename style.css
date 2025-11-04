@@ -786,7 +786,7 @@ body.video-open {
   position: sticky;
   top: 0;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  
   background: black;
   z-index: 10;
 }
@@ -908,4 +908,9 @@ body.video-open {
 .search-history-item:hover {
   background: #ff2200;
   box-shadow: 0 0 25px #ff3300;
+}
+/* Subscribed button turns blue */
+.neon-button.subscribed {
+  background: linear-gradient(90deg, #007bff, #00aaff);
+  box-shadow: 0 0 20px #00aaff;
 }
